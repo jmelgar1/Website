@@ -28,7 +28,12 @@ const EarthScene = () => {
             onMouseMove={handleMouseMove}
         >
             <Canvas
-                camera={{ position: [0, 0, 5], fov: 70 }}
+                camera={{
+                    position: [0, 15, 15], // X, Y, Z coordinates
+                    fov: 45,              // Field of view
+                    near: 0.1,            // Clipping planes
+                    far: 1000
+                }}
                 shadows
                 gl={{ physicallyCorrectLights: true }}
             >

@@ -40,7 +40,7 @@ const Stars = () => {
     }, []);
 
     useFrame(() => {
-        starsRef.current.rotation.y += 0.0005;
+        starsRef.current.rotation.y += 0.0001;
     });
 
     return (
@@ -55,8 +55,8 @@ const Stars = () => {
             </bufferGeometry>
             <pointsMaterial
                 map={starTexture}
-                size={0.2} // Changed from 0.5 to 0.8 (60% larger)
-                sizeAttenuation={true} // Enable attenuation for depth perspective
+                size={0.2}
+                sizeAttenuation={true}
                 transparent={true}
                 opacity={1}
                 alphaTest={0.1}
