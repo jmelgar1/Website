@@ -5,10 +5,12 @@ import Experience from './components/Experience.js';
 import Skills from './components/Skills.js';
 import Projects from './components/Projects.js';
 import Navbar from "./components/NavBar.js";
+import DrawingCanvas from "./components/DrawingCanvas";
 
 function App() {
     return (
         <div className="App">
+            <DrawingCanvas />
             <Navbar />
             <main>
                 <Hero />
