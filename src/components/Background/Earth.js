@@ -1,3 +1,4 @@
+// Earth.js
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Matrix4, Quaternion, TextureLoader, Vector3 } from 'three';
@@ -17,6 +18,7 @@ const Earth = ({ isDraggingScene }) => {
     const [isDraggingEarth, setIsDraggingEarth] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const [zoomed, setZoomed] = useState(false);
+    const [isPointerOverEarth, setIsPointerOverEarth] = useState(false);
     const { size, camera } = useThree();
     const originalCameraPosition = useRef(new THREE.Vector3());
     const angularVelocity = useRef(new Vector3(0, 0, 0));
@@ -30,28 +32,43 @@ const Earth = ({ isDraggingScene }) => {
     const MOON_DISTANCE = 8;
     const MOON_SPEED = 0.001;
 
+    // Handle pointer entering Earth
     const handleMouseOver = useCallback((e) => {
         e.stopPropagation();
-        setZoomed(true);  // Enter zoom mode on hover
-    }, []);
+        setIsPointerOverEarth(true);
+        if (!isDraggingScene && !isDraggingEarth) { // Only zoom if not dragging
+            setZoomed(true);
+        }
+    }, [isDraggingScene, isDraggingEarth]);
 
+    // Handle pointer leaving Earth
     const handleMouseLeave = useCallback(() => {
-        setZoomed(false);  // Exit zoom mode on leave
-    }, []);
+        setIsPointerOverEarth(false);
+        if (!isDraggingEarth) { // Only unzoom if not dragging
+            setZoomed(false);
+        }
+    }, [isDraggingEarth]);
 
+    // Handle mouse down on Earth to start dragging
     const handleMouseDown = useCallback((e) => {
         e.stopPropagation();
-        setIsDraggingEarth(true);
-        setPrevMousePos({
-            x: (e.clientX / size.width) * 2 - 1,
-            y: -(e.clientY / size.height) * 2 + 1
-        });
-    }, [size]);
+        if (!isDraggingScene) { // Only allow dragging Earth if scene is not being dragged
+            setIsDraggingEarth(true);
+            setPrevMousePos({
+                x: (e.clientX / size.width) * 2 - 1,
+                y: -(e.clientY / size.height) * 2 + 1
+            });
+            // Capture the pointer to ensure all events are received
+            e.target.setPointerCapture(e.pointerId);
+        }
+    }, [isDraggingScene, size]);
 
+    // Handle mouse up on Earth
     const handleMouseUp = useCallback(() => {
         setIsDraggingEarth(false);
     }, []);
 
+    // Handle mouse move on Earth during dragging
     const handleMouseMove = useCallback((e) => {
         if (isDraggingEarth && !isDraggingScene && earthGroupRef.current) {
             const currentMousePos = {
@@ -92,6 +109,24 @@ const Earth = ({ isDraggingScene }) => {
         }
     }, [isDraggingEarth, isDraggingScene, prevMousePos, size, camera]);
 
+    // Global pointer up listener to reset dragging state and manage zoom
+    useEffect(() => {
+        const handleGlobalPointerUp = () => {
+            if (isDraggingEarth) {
+                setIsDraggingEarth(false);
+                setZoomed(isPointerOverEarth && !isDraggingScene);
+            }
+        };
+
+        if (isDraggingEarth) {
+            window.addEventListener('pointerup', handleGlobalPointerUp);
+        }
+
+        return () => {
+            window.removeEventListener('pointerup', handleGlobalPointerUp);
+        };
+    }, [isDraggingEarth, isPointerOverEarth, isDraggingScene]);
+
     useFrame((state, delta) => {
         // Smooth camera zoom
         const targetPosition = zoomed
@@ -127,15 +162,6 @@ const Earth = ({ isDraggingScene }) => {
                 const damping = 0.90 - Math.min(momentumMagnitude * 0.015, 0.05);
                 angularVelocity.current.multiplyScalar(damping);
             }
-
-            // Gentle base rotation when not zoomed
-            if (!zoomed && angularVelocity.current.length() < 0.01) {
-                const baseRotation = new Quaternion()
-                    .setFromAxisAngle(new Vector3(0, 1, 0), 0.0001 * delta * 60);
-
-                // Apply base rotation to the Earth group
-                earthGroupRef.current.quaternion.multiply(baseRotation);
-            }
         }
     });
 
@@ -145,7 +171,7 @@ const Earth = ({ isDraggingScene }) => {
             <group
                 ref={earthGroupRef}
                 onPointerOver={handleMouseOver}
-                onPointerLeave={handleMouseLeave}
+                onPointerOut={handleMouseLeave}
                 onPointerDown={handleMouseDown}
                 onPointerUp={handleMouseUp}
                 onPointerMove={handleMouseMove}
