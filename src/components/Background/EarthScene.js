@@ -29,9 +29,9 @@ const EarthScene = () => {
         >
             <Canvas
                 camera={{
-                    position: [0, 15, 15], // X, Y, Z coordinates
-                    fov: 45,              // Field of view
-                    near: 0.1,            // Clipping planes
+                    position: [0, 15, 15],
+                    fov: 45,
+                    near: 0.1,
                     far: 1000
                 }}
                 shadows
