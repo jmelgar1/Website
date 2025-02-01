@@ -1,25 +1,25 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
-import {Quaternion, TextureLoader, Vector3} from 'three';
+import { Matrix4, Quaternion, TextureLoader, Vector3 } from 'three';
+import * as THREE from 'three';
+
 import earthTexture from '../../textures/earth_daymap.jpg';
 import moonTexture from '../../textures/moon_map.png';
 import cloudTexture from '../../textures/earth_clouds.png';
-import * as THREE from "three";
 
-const Earth = () => {
-    const earthRef = useRef();
+const Earth = ({ isDraggingScene }) => {
+    const earthGroupRef = useRef();
     const moonRef = useRef();
-    const cloudRef = useRef();
     const [angle, setAngle] = useState(0);
-    const colorMap = useLoader(TextureLoader, earthTexture);
+    const earthMap = useLoader(TextureLoader, earthTexture);
     const moonMap = useLoader(TextureLoader, moonTexture);
     const cloudMap = useLoader(TextureLoader, cloudTexture);
-    const [isDragging, setIsDragging] = useState(false);
+    const [isDraggingEarth, setIsDraggingEarth] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const [zoomed, setZoomed] = useState(false);
     const { size, camera } = useThree();
     const originalCameraPosition = useRef(new THREE.Vector3());
-    const angularVelocity = useRef({ x: 0, y: 0 });
+    const angularVelocity = useRef(new Vector3(0, 0, 0));
 
     // Store initial camera position
     useEffect(() => {
@@ -32,56 +32,70 @@ const Earth = () => {
 
     const handleMouseOver = useCallback((e) => {
         e.stopPropagation();
-        setIsDragging(true);
+        setZoomed(true);  // Enter zoom mode on hover
+    }, []);
+
+    const handleMouseLeave = useCallback(() => {
+        setZoomed(false);  // Exit zoom mode on leave
+    }, []);
+
+    const handleMouseDown = useCallback((e) => {
+        e.stopPropagation();
+        setIsDraggingEarth(true);
         setPrevMousePos({
-            x: e.clientX / size.width * 2 - 1,
+            x: (e.clientX / size.width) * 2 - 1,
             y: -(e.clientY / size.height) * 2 + 1
         });
     }, [size]);
 
-    const handleMouseLeave = useCallback(() => {
-        setIsDragging(false);
+    const handleMouseUp = useCallback(() => {
+        setIsDraggingEarth(false);
     }, []);
 
     const handleMouseMove = useCallback((e) => {
-        if (isDragging && earthRef.current) {
+        if (isDraggingEarth && !isDraggingScene && earthGroupRef.current) {
             const currentMousePos = {
-                x: e.clientX / size.width * 2 - 1,
+                x: (e.clientX / size.width) * 2 - 1,
                 y: -(e.clientY / size.height) * 2 + 1
             };
 
             const deltaX = currentMousePos.x - prevMousePos.x;
             const deltaY = currentMousePos.y - prevMousePos.y;
 
-            // Create rotation quaternion in world space
-            const axis = new Vector3(-deltaY, deltaX, 0);
-            const angle = axis.length() * 3; // Rotation speed multiplier
-            axis.normalize();
+            // Calculate cursor speed with exponential scaling
+            const cursorSpeed = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-            // Apply rotation relative to camera view
-            const quaternion = new Quaternion()
-                .setFromAxisAngle(axis, angle);
+            // Get camera vectors
+            const cameraDirection = new Vector3();
+            camera.getWorldDirection(cameraDirection);
 
-            // Apply to Earth's current rotation
-            earthRef.current.quaternion.multiply(quaternion);
+            // Create rotation axis
+            const dragDirection = new Vector3(deltaX, deltaY, 0);
+            let rotationAxis = new Vector3()
+                .crossVectors(dragDirection, cameraDirection)
+                .normalize();
 
-            // Update angular velocity for momentum
-            angularVelocity.current.x = deltaY * 0.8;
-            angularVelocity.current.y = deltaX * 0.8;
+            // Transform axis to local space
+            const worldMatrix = new Matrix4();
+            worldMatrix.extractRotation(earthGroupRef.current.matrixWorld);
+            rotationAxis.applyMatrix4(worldMatrix).normalize();
+
+            // Calculate rotation power based on cursor speed
+            const rotationPower = Math.pow(cursorSpeed, 1.5) * 1.5; // Non-linear response
+
+            // Apply velocity with speed-based scaling
+            angularVelocity.current.add(
+                rotationAxis.multiplyScalar(rotationPower * 100)
+            );
 
             setPrevMousePos(currentMousePos);
         }
-    }, [isDragging, prevMousePos, size]);
+    }, [isDraggingEarth, isDraggingScene, prevMousePos, size, camera]);
 
-    const handleZoom = useCallback((e) => {
-        e.stopPropagation();
-        setZoomed(!zoomed);
-    }, [zoomed]);
-
-    useFrame(() => {
+    useFrame((state, delta) => {
         // Smooth camera zoom
         const targetPosition = zoomed
-            ? new THREE.Vector3(0, 0, 10)
+            ? new Vector3(0, 0, 10)
             : originalCameraPosition.current;
 
         camera.position.lerp(targetPosition, 0.1);
@@ -89,30 +103,39 @@ const Earth = () => {
 
         // Moon orbit
         if (moonRef.current) {
-            setAngle(prev => prev + MOON_SPEED);
+            setAngle(prev => prev + MOON_SPEED * delta * 60);
             moonRef.current.position.x = Math.sin(angle) * MOON_DISTANCE;
             moonRef.current.position.z = Math.cos(angle) * MOON_DISTANCE;
             moonRef.current.rotation.y = angle;
         }
 
-        // Apply angular velocity with damping
-        if (earthRef.current) {
-            earthRef.current.rotation.y += angularVelocity.current.y;
-            earthRef.current.rotation.x += angularVelocity.current.x;
+        // Apply momentum-based rotation
+        if (earthGroupRef.current) {
+            const momentumMagnitude = angularVelocity.current.length();
 
-            // Velocity damping (creates smooth slowdown)
-            angularVelocity.current.y *= 0.8; // Horizontal damping
-            angularVelocity.current.x *= 0.8; // Vertical damping
+            if (momentumMagnitude > 0.001) {
+                // Calculate rotation angle based on velocity magnitude
+                const rotationAngle = momentumMagnitude * delta * 15;
+                const axis = angularVelocity.current.clone().normalize();
 
-            // Cloud rotation (slightly faster than Earth)
-            if (cloudRef.current) {
-                cloudRef.current.rotation.y += 0.00035 + angularVelocity.current.y * 0.5;
+                // Apply rotation to the Earth group
+                earthGroupRef.current.quaternion.multiply(
+                    new Quaternion().setFromAxisAngle(axis, rotationAngle)
+                );
+
+                // Speed-dependent damping (faster spins last longer)
+                const damping = 0.90 - Math.min(momentumMagnitude * 0.015, 0.05);
+                angularVelocity.current.multiplyScalar(damping);
             }
-        }
 
-        // Add base rotation when not interacting
-        if (!isDragging) {
-            earthRef.current.rotation.y += 0.0003;
+            // Gentle base rotation when not zoomed
+            if (!zoomed && angularVelocity.current.length() < 0.01) {
+                const baseRotation = new Quaternion()
+                    .setFromAxisAngle(new Vector3(0, 1, 0), 0.0001 * delta * 60);
+
+                // Apply base rotation to the Earth group
+                earthGroupRef.current.quaternion.multiply(baseRotation);
+            }
         }
     });
 
@@ -120,17 +143,18 @@ const Earth = () => {
         <group>
             {/* Earth Group with hover and click handlers */}
             <group
-                ref={earthRef}
+                ref={earthGroupRef}
                 onPointerOver={handleMouseOver}
                 onPointerLeave={handleMouseLeave}
+                onPointerDown={handleMouseDown}
+                onPointerUp={handleMouseUp}
                 onPointerMove={handleMouseMove}
-                onClick={handleZoom}
             >
                 {/* Earth Sphere */}
                 <mesh>
                     <sphereGeometry args={[2, 64, 64]} />
                     <meshStandardMaterial
-                        map={colorMap}
+                        map={earthMap}
                         metalness={0.2}
                         roughness={0.5}
                         emissive="#222233"
@@ -138,13 +162,13 @@ const Earth = () => {
                     />
                 </mesh>
 
-                {/* Cloud Layer with momentum-based rotation */}
-                <mesh ref={cloudRef}>
+                {/* Cloud Layer */}
+                <mesh>
                     <sphereGeometry args={[2.05, 64, 64]} />
                     <meshStandardMaterial
                         map={cloudMap}
                         transparent={true}
-                        opacity={0.8}
+                        opacity={0.6}
                         alphaTest={0.5}
                         blending={THREE.AdditiveBlending}
                         metalness={0.0}
