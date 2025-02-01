@@ -1,208 +1,142 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Matrix4, Quaternion, TextureLoader, Vector3 } from 'three';
+import { Quaternion, TextureLoader, Vector3 } from 'three';
 import * as THREE from 'three';
 
 import earthTexture from '../../textures/earth_daymap.jpg';
 import moonTexture from '../../textures/moon_map.png';
 import cloudTexture from '../../textures/earth_clouds.png';
 
-const Earth = ({ isDraggingScene }) => {
+const Earth = ({ isFocused, onFocus, onDrag }) => {
     const earthGroupRef = useRef();
     const moonRef = useRef();
     const [angle, setAngle] = useState(0);
     const earthMap = useLoader(TextureLoader, earthTexture);
     const moonMap = useLoader(TextureLoader, moonTexture);
     const cloudMap = useLoader(TextureLoader, cloudTexture);
-    const [isDraggingEarth, setIsDraggingEarth] = useState(false);
-    const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
-    const [zoomed, setZoomed] = useState(false);
-    const [isPointerOverEarth, setIsPointerOverEarth] = useState(false);
-    const hasDragged = useRef(false); // Track if a drag occurred
-    const { size, camera } = useThree();
+    const [isPointerOver, setIsPointerOver] = useState(false);
+    const [isHighlighted, setIsHighlighted] = useState(false);
+    const hasDragged = useRef(false);
+    const { camera } = useThree();
     const originalCameraPosition = useRef(new THREE.Vector3());
+    const targetCameraPosition = useRef(new THREE.Vector3());
     const angularVelocity = useRef(new Vector3(0, 0, 0));
 
-    // Moon orbital parameters
-    const MOON_DISTANCE = 10;
-    const MOON_SPEED = 0.001;
+    // Camera positions
+    const ZOOMED_POSITION = new Vector3(0, 0, 5);
+    const DEFAULT_POSITION = new Vector3(0, 15, 15);
 
-    // Store initial camera position
+    // Initialize camera positions
     useEffect(() => {
-        originalCameraPosition.current.copy(camera.position);
+        originalCameraPosition.current.copy(DEFAULT_POSITION);
+        targetCameraPosition.current.copy(DEFAULT_POSITION);
+        camera.position.copy(DEFAULT_POSITION);
     }, [camera]);
 
-    // Handle pointer entering Earth (Highlighting)
-    const handleMouseOver = useCallback((e) => {
+    // Update target position when focus changes
+    useEffect(() => {
+        console.log('Focus state changed:', isFocused);
+        if (isFocused) {
+            targetCameraPosition.current.copy(ZOOMED_POSITION);
+        } else {
+            targetCameraPosition.current.copy(DEFAULT_POSITION);
+        }
+    }, [isFocused]);
+
+    // Pointer event handlers
+    const handlePointerOver = useCallback((e) => {
         e.stopPropagation();
-        if (!zoomed) { // Only highlight if not zoomed
-            setIsPointerOverEarth(true);
-        }
-    }, [zoomed]);
+        if (!isFocused) setIsHighlighted(true);
+        setIsPointerOver(true);
+    }, [isFocused]);
 
-    // Handle pointer leaving Earth (Remove Highlighting)
-    const handleMouseLeave = useCallback(() => {
-        if (!isDraggingEarth && !hasDragged.current) { // Only unhighlight if not dragging and no drag occurred
-            setIsPointerOverEarth(false);
-        }
-    }, [isDraggingEarth]);
-
-    // Handle mouse down on Earth to start dragging
-    const handleMouseDown = useCallback((e) => {
-        e.stopPropagation();
-        if (!isDraggingScene) { // Only allow dragging Earth if scene is not being dragged
-            setIsDraggingEarth(true);
-            hasDragged.current = false; // Reset drag tracking
-            setPrevMousePos({
-                x: (e.clientX / size.width) * 2 - 1,
-                y: -(e.clientY / size.height) * 2 + 1
-            });
-            // Capture the pointer to ensure all events are received
-            e.target.setPointerCapture(e.pointerId);
-        }
-    }, [isDraggingScene, size]);
-
-    // Handle mouse up on Earth
-    const handleMouseUp = useCallback(() => {
-        setIsDraggingEarth(false);
+    const handlePointerOut = useCallback(() => {
+        if (!hasDragged.current) setIsHighlighted(false);
+        setIsPointerOver(false);
     }, []);
 
-    // Handle mouse move on Earth during dragging
-    const handleMouseMove = useCallback((e) => {
-        if (isDraggingEarth && !isDraggingScene && earthGroupRef.current) {
-            hasDragged.current = true; // User is dragging
-            const currentMousePos = {
-                x: (e.clientX / size.width) * 2 - 1,
-                y: -(e.clientY / size.height) * 2 + 1
-            };
-
-            const deltaX = currentMousePos.x - prevMousePos.x;
-            const deltaY = currentMousePos.y - prevMousePos.y;
-
-            // Calculate cursor speed with exponential scaling
-            const cursorSpeed = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            // Get camera vectors
-            const cameraDirection = new Vector3();
-            camera.getWorldDirection(cameraDirection);
-
-            // Create rotation axis
-            const dragDirection = new Vector3(deltaX, deltaY, 0);
-            let rotationAxis = new Vector3()
-                .crossVectors(dragDirection, cameraDirection)
-                .normalize();
-
-            // Transform axis to local space
-            const worldMatrix = new Matrix4();
-            worldMatrix.extractRotation(earthGroupRef.current.matrixWorld);
-            rotationAxis.applyMatrix4(worldMatrix).normalize();
-
-            // Calculate rotation power based on cursor speed
-            const rotationPower = Math.pow(cursorSpeed, 1.5) * 1.5; // Non-linear response
-
-            // Apply velocity with speed-based scaling
-            angularVelocity.current.add(
-                rotationAxis.multiplyScalar(rotationPower * 100)
-            );
-
-            setPrevMousePos(currentMousePos);
-        }
-    }, [isDraggingEarth, isDraggingScene, prevMousePos, size, camera]);
-
-    // Handle click to toggle zoom (Only if not dragging)
-    const handleClick = useCallback((e) => {
+    const handlePointerDown = useCallback((e) => {
         e.stopPropagation();
-        if (!hasDragged.current) { // Only proceed if it was a click, not a drag
-            setZoomed(true); // Zoom in when clicking on Earth
-        }
-        // Reset hasDragged after handling the click
         hasDragged.current = false;
-    }, []);
+        onDrag(true);
+    }, [onDrag]);
 
-    // Global click handler to detect clicks outside Earth
-    useEffect(() => {
-        const handleGlobalClick = () => {
-            if (zoomed && !isPointerOverEarth) { // Unzoom only if zoomed and click is outside Earth
-                setZoomed(false);
-            }
-        };
-
-        window.addEventListener('click', handleGlobalClick);
-
-        return () => {
-            window.removeEventListener('click', handleGlobalClick);
-        };
-    }, [zoomed, isPointerOverEarth]);
-
-    // Global pointer up listener to reset dragging state
-    useEffect(() => {
-        const handleGlobalPointerUp = () => {
-            if (isDraggingEarth) {
-                setIsDraggingEarth(false);
-                // Reset hasDragged in case the pointer is released without triggering handleMouseLeave
-                hasDragged.current = false;
-            }
-        };
-
-        if (isDraggingEarth) {
-            window.addEventListener('pointerup', handleGlobalPointerUp);
+    const handlePointerMove = useCallback((e) => {
+        if (e.buttons > 0) {
+            hasDragged.current = true;
+            onDrag(true);
         }
+    }, [onDrag]);
 
-        return () => {
-            window.removeEventListener('pointerup', handleGlobalPointerUp);
-        };
-    }, [isDraggingEarth]);
+    const handlePointerUp = useCallback((e) => {
+        e.stopPropagation();
+        onDrag(false);
+    }, [onDrag]);
+
+    const handleClick = useCallback((e) => {
+        console.log('Earth clicked, isFocused:', isFocused);
+        e.stopPropagation();
+        if (!hasDragged.current) {
+            console.log('Triggering focus change');
+            onFocus(!isFocused);
+            setIsHighlighted(false);
+        }
+        hasDragged.current = false;
+    }, [isFocused, onFocus]);
+
+    const handleWheel = useCallback((e) => {
+        e.stopPropagation();
+        if (isFocused && e.deltaY > 0) {
+            onFocus(false);
+        } else if (!isFocused && e.deltaY < 0) {
+            onFocus(true);
+        }
+    }, [isFocused, onFocus]);
 
     useFrame((state, delta) => {
-        // Determine target camera position based on zoom state
-        const targetPosition = zoomed
-            ? new Vector3(0, 0, 10) // Zoomed-in position (adjust as needed)
-            : originalCameraPosition.current;
+        // Smooth camera transition with easing
+        const t = Math.min(delta * 2, 1);
+        camera.position.lerp(targetCameraPosition.current, t);
 
-        // Smoothly interpolate camera position towards the target
-        camera.position.lerp(targetPosition, 0.1);
-        camera.lookAt(0, 0, 0);
-
-        // Moon orbit logic
-        if (moonRef.current) {
-            setAngle(prev => prev + MOON_SPEED * delta * 60);
-            moonRef.current.position.x = Math.sin(angle) * MOON_DISTANCE;
-            moonRef.current.position.z = Math.cos(angle) * MOON_DISTANCE;
-            moonRef.current.rotation.y = angle;
+        // Use state.camera instead of camera directly for lookAt
+        if (isFocused) {
+            const target = new THREE.Vector3(0, 0, 0);
+            state.camera.lookAt(target);
         }
 
-        // Apply momentum-based rotation for Earth
+        // Moon orbit
+        if (moonRef.current) {
+            setAngle(prev => prev + 0.001 * delta * 60);
+            moonRef.current.position.x = Math.sin(angle) * 10;
+            moonRef.current.position.z = Math.cos(angle) * 10;
+            moonRef.current.lookAt(0, 0, 0);
+        }
+
+        // Earth rotation momentum
         if (earthGroupRef.current) {
-            const momentumMagnitude = angularVelocity.current.length();
-
-            if (momentumMagnitude > 0.001) {
-                // Calculate rotation angle based on velocity magnitude
-                const rotationAngle = momentumMagnitude * delta * 15;
-                const axis = angularVelocity.current.clone().normalize();
-
-                // Apply rotation to the Earth group
+            const momentum = angularVelocity.current;
+            if (momentum.length() > 0.001) {
+                const rotationAngle = momentum.length() * delta * 15;
+                const axis = momentum.clone().normalize();
                 earthGroupRef.current.quaternion.multiply(
                     new Quaternion().setFromAxisAngle(axis, rotationAngle)
                 );
-
-                // Speed-dependent damping (faster spins last longer)
-                const damping = 0.90 - Math.min(momentumMagnitude * 0.015, 0.05);
-                angularVelocity.current.multiplyScalar(damping);
+                angularVelocity.current.multiplyScalar(0.90);
             }
         }
     });
 
     return (
         <group>
-            {/* Earth Group with interaction handlers */}
             <group
                 ref={earthGroupRef}
-                onPointerOver={handleMouseOver}
-                onPointerOut={handleMouseLeave}
-                onPointerDown={handleMouseDown}
-                onPointerUp={handleMouseUp}
-                onPointerMove={handleMouseMove}
-                onClick={handleClick} // Click handler for zooming
+                onPointerOver={handlePointerOver}
+                onPointerOut={handlePointerOut}
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerMove={handlePointerMove}
+                onClick={handleClick}
+                onWheel={handleWheel}
             >
                 {/* Earth Sphere */}
                 <mesh>
@@ -211,8 +145,8 @@ const Earth = ({ isDraggingScene }) => {
                         map={earthMap}
                         metalness={0.2}
                         roughness={0.5}
-                        emissive={isPointerOverEarth ? '#5e5e5e' : '#222233'}
-                        emissiveIntensity={isPointerOverEarth ? 0.6 : 0.3}
+                        emissive={isHighlighted ? '#5e5e5e' : '#222233'}
+                        emissiveIntensity={isHighlighted ? 0.6 : 0.3}
                     />
                 </mesh>
 
@@ -233,7 +167,7 @@ const Earth = ({ isDraggingScene }) => {
             </group>
 
             {/* Moon */}
-            <mesh ref={moonRef} position={[MOON_DISTANCE, 0, 0]}>
+            <mesh ref={moonRef} position={[10, 0, 0]}>
                 <sphereGeometry args={[0.5, 32, 32]} />
                 <meshStandardMaterial
                     map={moonMap}
