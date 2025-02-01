@@ -7,7 +7,7 @@ import * as THREE from 'three';
 
 const EarthScene = () => {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
+    const [isDraggingScene, setIsDraggingScene] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const sceneRef = useRef();
 
@@ -17,7 +17,7 @@ const EarthScene = () => {
             y: -(event.clientY / window.innerHeight) * 2 + 1,
         };
 
-        if (isDragging && sceneRef.current) {
+        if (isDraggingScene && sceneRef.current) {
             const deltaX = currentMousePos.x - prevMousePos.x;
             const deltaY = currentMousePos.y - prevMousePos.y;
 
@@ -31,7 +31,7 @@ const EarthScene = () => {
     };
 
     const handleMouseDown = (event) => {
-        setIsDragging(true);
+        setIsDraggingScene(true);
         setPrevMousePos({
             x: (event.clientX / window.innerWidth) * 2 - 1,
             y: -(event.clientY / window.innerHeight) * 2 + 1,
@@ -39,7 +39,7 @@ const EarthScene = () => {
     };
 
     const handleMouseUp = () => {
-        setIsDragging(false);
+        setIsDraggingScene(false);
     };
 
     return (
@@ -92,7 +92,8 @@ const EarthScene = () => {
                         color="#ffeedd"
                         decay={2}
                     />
-                    <Earth mousePosition={mousePosition} />
+                    {/* Pass isDraggingScene as a prop to Earth */}
+                    <Earth mousePosition={mousePosition} isDraggingScene={isDraggingScene} />
                     <Stars />
                 </group>
                 <OrbitControls

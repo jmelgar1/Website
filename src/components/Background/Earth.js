@@ -7,15 +7,14 @@ import earthTexture from '../../textures/earth_daymap.jpg';
 import moonTexture from '../../textures/moon_map.png';
 import cloudTexture from '../../textures/earth_clouds.png';
 
-const Earth = () => {
-    const earthRef = useRef();
+const Earth = ({ isDraggingScene }) => {
+    const earthGroupRef = useRef();
     const moonRef = useRef();
-    const cloudRef = useRef();
     const [angle, setAngle] = useState(0);
     const earthMap = useLoader(TextureLoader, earthTexture);
     const moonMap = useLoader(TextureLoader, moonTexture);
     const cloudMap = useLoader(TextureLoader, cloudTexture);
-    const [isDragging, setIsDragging] = useState(false);
+    const [isDraggingEarth, setIsDraggingEarth] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const [zoomed, setZoomed] = useState(false);
     const { size, camera } = useThree();
@@ -42,21 +41,21 @@ const Earth = () => {
 
     const handleMouseDown = useCallback((e) => {
         e.stopPropagation();
-        setIsDragging(true);
+        setIsDraggingEarth(true);
         setPrevMousePos({
-            x: e.clientX / size.width * 2 - 1,
+            x: (e.clientX / size.width) * 2 - 1,
             y: -(e.clientY / size.height) * 2 + 1
         });
     }, [size]);
 
     const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
+        setIsDraggingEarth(false);
     }, []);
 
     const handleMouseMove = useCallback((e) => {
-        if (isDragging && earthRef.current) {
+        if (isDraggingEarth && !isDraggingScene && earthGroupRef.current) {
             const currentMousePos = {
-                x: e.clientX / size.width * 2 - 1,
+                x: (e.clientX / size.width) * 2 - 1,
                 y: -(e.clientY / size.height) * 2 + 1
             };
 
@@ -78,7 +77,7 @@ const Earth = () => {
 
             // Transform axis to local space
             const worldMatrix = new Matrix4();
-            worldMatrix.extractRotation(earthRef.current.matrixWorld);
+            worldMatrix.extractRotation(earthGroupRef.current.matrixWorld);
             rotationAxis.applyMatrix4(worldMatrix).normalize();
 
             // Calculate rotation power based on cursor speed
@@ -91,7 +90,7 @@ const Earth = () => {
 
             setPrevMousePos(currentMousePos);
         }
-    }, [isDragging, prevMousePos, size, camera]);
+    }, [isDraggingEarth, isDraggingScene, prevMousePos, size, camera]);
 
     useFrame((state, delta) => {
         // Smooth camera zoom
@@ -111,7 +110,7 @@ const Earth = () => {
         }
 
         // Apply momentum-based rotation
-        if (earthRef.current) {
+        if (earthGroupRef.current) {
             const momentumMagnitude = angularVelocity.current.length();
 
             if (momentumMagnitude > 0.001) {
@@ -119,15 +118,10 @@ const Earth = () => {
                 const rotationAngle = momentumMagnitude * delta * 15;
                 const axis = angularVelocity.current.clone().normalize();
 
-                // Apply rotation to Earth
-                earthRef.current.quaternion.multiply(
+                // Apply rotation to the Earth group
+                earthGroupRef.current.quaternion.multiply(
                     new Quaternion().setFromAxisAngle(axis, rotationAngle)
                 );
-
-                // Apply the same rotation to clouds
-                if (cloudRef.current) {
-                    cloudRef.current.quaternion.copy(earthRef.current.quaternion);
-                }
 
                 // Speed-dependent damping (faster spins last longer)
                 const damping = 0.90 - Math.min(momentumMagnitude * 0.015, 0.05);
@@ -139,13 +133,8 @@ const Earth = () => {
                 const baseRotation = new Quaternion()
                     .setFromAxisAngle(new Vector3(0, 1, 0), 0.0001 * delta * 60);
 
-                // Apply base rotation to Earth
-                earthRef.current.quaternion.multiply(baseRotation);
-
-                // Apply the same base rotation to clouds
-                if (cloudRef.current) {
-                    cloudRef.current.quaternion.multiply(baseRotation);
-                }
+                // Apply base rotation to the Earth group
+                earthGroupRef.current.quaternion.multiply(baseRotation);
             }
         }
     });
@@ -154,7 +143,7 @@ const Earth = () => {
         <group>
             {/* Earth Group with hover and click handlers */}
             <group
-                ref={earthRef}
+                ref={earthGroupRef}
                 onPointerOver={handleMouseOver}
                 onPointerLeave={handleMouseLeave}
                 onPointerDown={handleMouseDown}
@@ -173,8 +162,8 @@ const Earth = () => {
                     />
                 </mesh>
 
-                {/* Cloud Layer with synchronized rotation */}
-                <mesh ref={cloudRef}>
+                {/* Cloud Layer */}
+                <mesh>
                     <sphereGeometry args={[2.05, 64, 64]} />
                     <meshStandardMaterial
                         map={cloudMap}
