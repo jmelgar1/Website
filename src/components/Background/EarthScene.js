@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, {useRef, useState, useEffect, useCallback} from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import Earth from './Earth';
@@ -6,15 +6,13 @@ import Stars from './Stars';
 import * as THREE from 'three';
 
 const EarthScene = () => {
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const sceneRef = useRef();
     const [isDraggingScene, setIsDraggingScene] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const [focusedObject, setFocusedObject] = useState(null);
     const [earthHasDragged, setEarthHasDragged] = useState(false);
-    const sceneRef = useRef();
 
     const handleFocus = useCallback((shouldFocus) => {
-        console.log('Focus changing to:', shouldFocus);
         setFocusedObject(shouldFocus ? 'earth' : null);
     }, []);
 
@@ -31,8 +29,6 @@ const EarthScene = () => {
             sceneRef.current.rotation.y += deltaX * 2;
             sceneRef.current.rotation.x -= deltaY * 2;
         }
-
-        setMousePosition(currentMousePos);
         setPrevMousePos(currentMousePos);
     };
 
@@ -44,10 +40,10 @@ const EarthScene = () => {
         });
     };
 
-    // Global click handler for unzooming
+    // Global click handler for focusing
     useEffect(() => {
-        const handleGlobalClick = (e) => {
-            if (focusedObject === 'earth' && !earthHasDragged && !e.defaultPrevented) {
+        const handleGlobalClick = () => {
+            if (focusedObject === 'earth' && !earthHasDragged) {
                 setFocusedObject(null);
             }
             setEarthHasDragged(false);
@@ -84,7 +80,7 @@ const EarthScene = () => {
                     position: [0, 15, 15],
                     fov: 45,
                     near: 0.1,
-                    far: 1000
+                    far: 1000,
                 }}
                 shadows
                 gl={{ physicallyCorrectLights: true, toneMapping: THREE.ACESFilmicToneMapping }}
@@ -114,10 +110,9 @@ const EarthScene = () => {
                     <Stars />
                 </group>
                 <OrbitControls
-                    enableZoom={true}
+                    enableZoom={false}
                     enablePan={false}
-                    enableRotate={true}
-                    enabled={!focusedObject}
+                    enableRotate={false}
                 />
             </Canvas>
         </div>

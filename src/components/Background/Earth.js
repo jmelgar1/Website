@@ -23,7 +23,7 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
     const angularVelocity = useRef(new Vector3(0, 0, 0));
 
     // Camera positions
-    const ZOOMED_POSITION = new Vector3(0, 0, 5);
+    const ZOOMED_POSITION = new Vector3(0, 0, 10);
     const DEFAULT_POSITION = new Vector3(0, 15, 15);
 
     // Initialize camera positions
@@ -35,13 +35,15 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
 
     // Update target position when focus changes
     useEffect(() => {
-        console.log('Focus state changed:', isFocused);
+        targetCameraPosition.current.copy(isFocused ? ZOOMED_POSITION : DEFAULT_POSITION);
+    }, [isFocused]);
+
+    useEffect(() => {
         if (isFocused) {
-            targetCameraPosition.current.copy(ZOOMED_POSITION);
-        } else {
-            targetCameraPosition.current.copy(DEFAULT_POSITION);
+            setIsHighlighted(false);
         }
     }, [isFocused]);
+
 
     // Pointer event handlers
     const handlePointerOver = useCallback((e) => {
@@ -51,7 +53,7 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
     }, [isFocused]);
 
     const handlePointerOut = useCallback(() => {
-        if (!hasDragged.current) setIsHighlighted(false);
+        setIsHighlighted(false);
         setIsPointerOver(false);
     }, []);
 
@@ -74,16 +76,17 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
     }, [onDrag]);
 
     const handleClick = useCallback((e) => {
-        console.log('Earth clicked, isFocused:', isFocused);
+        console.log("click");
         e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
         if (!hasDragged.current) {
-            console.log('Triggering focus change');
-            onFocus(!isFocused);
+            onFocus(true);
             setIsHighlighted(false);
         }
         hasDragged.current = false;
-    }, [isFocused, onFocus]);
+    }, [onFocus]);
 
+    // Wheel handler
     const handleWheel = useCallback((e) => {
         e.stopPropagation();
         if (isFocused && e.deltaY > 0) {
@@ -93,16 +96,11 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
         }
     }, [isFocused, onFocus]);
 
+    // Animation frame loop
     useFrame((state, delta) => {
-        // Smooth camera transition with easing
-        const t = Math.min(delta * 2, 1);
-        camera.position.lerp(targetCameraPosition.current, t);
-
-        // Use state.camera instead of camera directly for lookAt
-        if (isFocused) {
-            const target = new THREE.Vector3(0, 0, 0);
-            state.camera.lookAt(target);
-        }
+        // Smooth camera transition
+        camera.position.lerp(targetCameraPosition.current, 0.1);
+        camera.lookAt(0, 0, 0);
 
         // Moon orbit
         if (moonRef.current) {
