@@ -4,7 +4,9 @@ import { OrbitControls } from '@react-three/drei';
 import Earth from './Earth';
 import Stars from './Stars';
 import CameraController from './CameraController';
+import ClickHandler from './ClickHandler';
 import * as THREE from 'three';
+import Mars from "./Mars";
 
 const Scene = () => {
     const sceneRef = useRef();
@@ -12,7 +14,7 @@ const Scene = () => {
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const [focusedObject, setFocusedObject] = useState(null);
     const [earthHasDragged, setEarthHasDragged] = useState(false);
-    const [hasSceneDragged, setHasSceneDragged] = useState(false); // Track scene drags
+    const [hasSceneDragged, setHasSceneDragged] = useState(false);
 
     // Handle focus changes
     const handleFocus = useCallback((shouldFocus) => {
@@ -30,7 +32,6 @@ const Scene = () => {
             const deltaX = currentMousePos.x - prevMousePos.x;
             const deltaY = currentMousePos.y - prevMousePos.y;
 
-            // Detect if there's actual movement
             if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
                 setHasSceneDragged(true);
             }
@@ -49,34 +50,6 @@ const Scene = () => {
             y: -(event.clientY / window.innerHeight) * 2 + 1,
         });
     };
-
-    // Global click handler for focusing
-    useEffect(() => {
-        const handleGlobalClick = (e) => {
-            // Only unfocus if there was no dragging (planet or scene) and the click was outside the planet
-            if (focusedObject === 'earth' && !earthHasDragged && !hasSceneDragged) {
-                // Check if the click was outside the planet
-                const raycaster = new THREE.Raycaster();
-                const mouse = new THREE.Vector2();
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-                raycaster.setFromCamera(mouse, sceneRef.current.parent.camera);
-                const intersects = raycaster.intersectObjects(sceneRef.current.children, true);
-
-                // If no intersection with the planet, unfocus
-                if (intersects.length === 0) {
-                    setFocusedObject(null);
-                }
-            }
-            // Reset drag states
-            setEarthHasDragged(false);
-            setHasSceneDragged(false);
-        };
-
-        window.addEventListener('click', handleGlobalClick);
-        return () => window.removeEventListener('click', handleGlobalClick);
-    }, [focusedObject, earthHasDragged, hasSceneDragged]);
 
     // Scene dragging cleanup
     useEffect(() => {
@@ -114,6 +87,15 @@ const Scene = () => {
                 gl={{ physicallyCorrectLights: true, toneMapping: THREE.ACESFilmicToneMapping }}
             >
                 <CameraController focusedObject={focusedObject} />
+                <ClickHandler
+                    sceneRef={sceneRef}
+                    focusedObject={focusedObject}
+                    earthHasDragged={earthHasDragged}
+                    hasSceneDragged={hasSceneDragged}
+                    setFocusedObject={setFocusedObject}
+                    setEarthHasDragged={setEarthHasDragged}
+                    setHasSceneDragged={setHasSceneDragged}
+                />
                 <group ref={sceneRef}>
                     <ambientLight intensity={0.5} color="#ffffff" />
                     <directionalLight
@@ -129,12 +111,16 @@ const Scene = () => {
                     </directionalLight>
                     <pointLight position={[-5, 3, 2]} intensity={0.8} color="#bde0ff" decay={2} />
                     <pointLight position={[0, -5, -3]} intensity={0.5} color="#ffeedd" decay={2} />
-
                     <Earth
                         isFocused={focusedObject === 'earth'}
                         onFocus={handleFocus}
                         onDrag={setEarthHasDragged}
                     />
+                    {/*<Mars*/}
+                    {/*    isFocused={focusedObject === 'mars'}*/}
+                    {/*    onFocus={handleFocus}*/}
+                    {/*    onDrag={setEarthHasDragged}*/}
+                    {/*/>*/}
                     <Stars />
                 </group>
                 <OrbitControls

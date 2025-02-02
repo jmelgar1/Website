@@ -12,7 +12,7 @@ const Planet = ({
                     rotationSpeed = 1,
                     hasClouds = false,
                     hasMoon = false,
-                    moonDistance = 10,
+                    moonDistance = 15,
                     moonSize = 0.5,
                     moonOrbitSpeed = 0.001,
                     emissive = '#222233',
@@ -25,9 +25,10 @@ const Planet = ({
                 }) => {
     const planetGroupRef = useRef();
     const moonRef = useRef();
+    const cloudGroupRef = useRef()
     const [angle, setAngle] = useState(0);
     const [isHighlighted, setIsHighlighted] = useState(false);
-    const hasDragged = useRef(false);
+    const [hasDragged, setHasDragged] = useState(false); // Use useState instead of useRef
     const angularVelocity = useRef(new Vector3(0, 0, 0));
 
     // Load textures unconditionally
@@ -35,7 +36,7 @@ const Planet = ({
     const cloudMap = useLoader(TextureLoader, cloudTexture || '');
     const moonMap = useLoader(TextureLoader, moonTexture || '');
 
-    // Event handlers (unchanged)
+    // Event handlers
     const handlePointerOver = useCallback((e) => {
         e.stopPropagation();
         if (!isFocused) setIsHighlighted(true);
@@ -47,13 +48,13 @@ const Planet = ({
 
     const handlePointerDown = useCallback((e) => {
         e.stopPropagation();
-        hasDragged.current = false;
+        setHasDragged(false); // Reset drag state
         onDrag(true);
     }, [onDrag]);
 
     const handlePointerMove = useCallback((e) => {
         if (e.buttons > 0) {
-            hasDragged.current = true;
+            setHasDragged(true); // Set drag state
             onDrag(true);
         }
     }, [onDrag]);
@@ -66,15 +67,14 @@ const Planet = ({
     const handleClick = useCallback((e) => {
         e.stopPropagation();
         e.nativeEvent.stopImmediatePropagation();
-        if (!hasDragged.current) {
-            // Only toggle focus if not already focused
+        if (!hasDragged) { // Use state value
             if (!isFocused) {
                 onFocus(true); // Focus on the planet
             }
             setIsHighlighted(false);
         }
-        hasDragged.current = false;
-    }, [onFocus, isFocused]);
+        setHasDragged(false);
+    }, [onFocus, isFocused, hasDragged]);
 
     const handleWheel = useCallback((e) => {
         e.stopPropagation();
@@ -85,7 +85,7 @@ const Planet = ({
         }
     }, [isFocused, onFocus]);
 
-    // Animation frame (unchanged)
+    // Animation frame
     useFrame((state, delta) => {
         // Moon orbit
         if (hasMoon && moonRef.current) {
@@ -107,6 +107,10 @@ const Planet = ({
                 );
                 angularVelocity.current.multiplyScalar(0.90);
             }
+        }
+
+        if (hasClouds && cloudGroupRef.current) {
+            cloudGroupRef.current.rotation.y += delta * rotationSpeed * 0.002;
         }
     });
 
@@ -136,19 +140,21 @@ const Planet = ({
 
                 {/* Clouds */}
                 {hasClouds && (
-                    <mesh>
-                        <sphereGeometry args={[cloudSize, 64, 64]} />
-                        <meshStandardMaterial
-                            map={cloudMap}
-                            transparent={true}
-                            opacity={0.6}
-                            alphaTest={0.5}
-                            blending={THREE.AdditiveBlending}
-                            metalness={0.0}
-                            roughness={0.8}
-                            side={THREE.DoubleSide}
-                        />
-                    </mesh>
+                    <group ref={cloudGroupRef}>
+                        <mesh>
+                            <sphereGeometry args={[cloudSize, 64, 64]} />
+                            <meshStandardMaterial
+                                map={cloudMap}
+                                transparent={true}
+                                opacity={0.6}
+                                alphaTest={0.5}
+                                blending={THREE.AdditiveBlending}
+                                metalness={0.0}
+                                roughness={0.8}
+                                side={THREE.DoubleSide}
+                            />
+                        </mesh>
+                    </group>
                 )}
             </group>
 
