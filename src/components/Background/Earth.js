@@ -14,7 +14,6 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
     const earthMap = useLoader(TextureLoader, earthTexture);
     const moonMap = useLoader(TextureLoader, moonTexture);
     const cloudMap = useLoader(TextureLoader, cloudTexture);
-    const [isPointerOver, setIsPointerOver] = useState(false);
     const [isHighlighted, setIsHighlighted] = useState(false);
     const hasDragged = useRef(false);
     const { camera } = useThree();
@@ -23,20 +22,22 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
     const angularVelocity = useRef(new Vector3(0, 0, 0));
 
     // Camera positions
-    const ZOOMED_POSITION = new Vector3(0, 0, 10);
-    const DEFAULT_POSITION = new Vector3(0, 15, 15);
+    let ZOOMED_POSITION;
+    ZOOMED_POSITION = new Vector3(0, 0, 10);
+    let DEFAULT_POSITION;
+    DEFAULT_POSITION = new Vector3(0, 15, 15);
 
     // Initialize camera positions
     useEffect(() => {
         originalCameraPosition.current.copy(DEFAULT_POSITION);
         targetCameraPosition.current.copy(DEFAULT_POSITION);
         camera.position.copy(DEFAULT_POSITION);
-    }, [camera]);
+    }, [DEFAULT_POSITION, camera]);
 
     // Update target position when focus changes
     useEffect(() => {
         targetCameraPosition.current.copy(isFocused ? ZOOMED_POSITION : DEFAULT_POSITION);
-    }, [isFocused]);
+    }, [DEFAULT_POSITION, ZOOMED_POSITION, isFocused]);
 
     useEffect(() => {
         if (isFocused) {
@@ -49,12 +50,10 @@ const Earth = ({ isFocused, onFocus, onDrag }) => {
     const handlePointerOver = useCallback((e) => {
         e.stopPropagation();
         if (!isFocused) setIsHighlighted(true);
-        setIsPointerOver(true);
     }, [isFocused]);
 
     const handlePointerOut = useCallback(() => {
         setIsHighlighted(false);
-        setIsPointerOver(false);
     }, []);
 
     const handlePointerDown = useCallback((e) => {
