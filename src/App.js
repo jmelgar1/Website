@@ -1,10 +1,10 @@
 import React from 'react';
-import EarthScene from './components/Background/EarthScene';
+import Scene from './components/Background/Scene';
 
 function App() {
     return (
         <div>
-            <EarthScene />
+            <Scene />
         </div>
     );
 }
