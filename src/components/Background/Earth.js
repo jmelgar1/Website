@@ -1,154 +1,139 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Matrix4, Quaternion, TextureLoader, Vector3 } from 'three';
+import { Quaternion, TextureLoader, Vector3 } from 'three';
 import * as THREE from 'three';
 
 import earthTexture from '../../textures/earth_daymap.jpg';
 import moonTexture from '../../textures/moon_map.png';
 import cloudTexture from '../../textures/earth_clouds.png';
 
-const Earth = ({ isDraggingScene }) => {
+const Earth = ({ isFocused, onFocus, onDrag }) => {
     const earthGroupRef = useRef();
     const moonRef = useRef();
     const [angle, setAngle] = useState(0);
     const earthMap = useLoader(TextureLoader, earthTexture);
     const moonMap = useLoader(TextureLoader, moonTexture);
     const cloudMap = useLoader(TextureLoader, cloudTexture);
-    const [isDraggingEarth, setIsDraggingEarth] = useState(false);
-    const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
-    const [zoomed, setZoomed] = useState(false);
-    const { size, camera } = useThree();
+    const [isHighlighted, setIsHighlighted] = useState(false);
+    const hasDragged = useRef(false);
+    const { camera } = useThree();
     const originalCameraPosition = useRef(new THREE.Vector3());
+    const targetCameraPosition = useRef(new THREE.Vector3());
     const angularVelocity = useRef(new Vector3(0, 0, 0));
 
-    // Store initial camera position
+    // Camera positions
+    let ZOOMED_POSITION;
+    ZOOMED_POSITION = new Vector3(0, 0, 10);
+    let DEFAULT_POSITION;
+    DEFAULT_POSITION = new Vector3(0, 15, 15);
+
+    // Initialize camera positions
     useEffect(() => {
-        originalCameraPosition.current.copy(camera.position);
-    }, [camera]);
+        originalCameraPosition.current.copy(DEFAULT_POSITION);
+        targetCameraPosition.current.copy(DEFAULT_POSITION);
+        camera.position.copy(DEFAULT_POSITION);
+    }, [DEFAULT_POSITION, camera]);
 
-    // Moon orbital parameters
-    const MOON_DISTANCE = 8;
-    const MOON_SPEED = 0.001;
+    // Update target position when focus changes
+    useEffect(() => {
+        targetCameraPosition.current.copy(isFocused ? ZOOMED_POSITION : DEFAULT_POSITION);
+    }, [DEFAULT_POSITION, ZOOMED_POSITION, isFocused]);
 
-    const handleMouseOver = useCallback((e) => {
-        e.stopPropagation();
-        setZoomed(true);  // Enter zoom mode on hover
-    }, []);
-
-    const handleMouseLeave = useCallback(() => {
-        setZoomed(false);  // Exit zoom mode on leave
-    }, []);
-
-    const handleMouseDown = useCallback((e) => {
-        e.stopPropagation();
-        setIsDraggingEarth(true);
-        setPrevMousePos({
-            x: (e.clientX / size.width) * 2 - 1,
-            y: -(e.clientY / size.height) * 2 + 1
-        });
-    }, [size]);
-
-    const handleMouseUp = useCallback(() => {
-        setIsDraggingEarth(false);
-    }, []);
-
-    const handleMouseMove = useCallback((e) => {
-        if (isDraggingEarth && !isDraggingScene && earthGroupRef.current) {
-            const currentMousePos = {
-                x: (e.clientX / size.width) * 2 - 1,
-                y: -(e.clientY / size.height) * 2 + 1
-            };
-
-            const deltaX = currentMousePos.x - prevMousePos.x;
-            const deltaY = currentMousePos.y - prevMousePos.y;
-
-            // Calculate cursor speed with exponential scaling
-            const cursorSpeed = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            // Get camera vectors
-            const cameraDirection = new Vector3();
-            camera.getWorldDirection(cameraDirection);
-
-            // Create rotation axis
-            const dragDirection = new Vector3(deltaX, deltaY, 0);
-            let rotationAxis = new Vector3()
-                .crossVectors(dragDirection, cameraDirection)
-                .normalize();
-
-            // Transform axis to local space
-            const worldMatrix = new Matrix4();
-            worldMatrix.extractRotation(earthGroupRef.current.matrixWorld);
-            rotationAxis.applyMatrix4(worldMatrix).normalize();
-
-            // Calculate rotation power based on cursor speed
-            const rotationPower = Math.pow(cursorSpeed, 1.5) * 1.5; // Non-linear response
-
-            // Apply velocity with speed-based scaling
-            angularVelocity.current.add(
-                rotationAxis.multiplyScalar(rotationPower * 100)
-            );
-
-            setPrevMousePos(currentMousePos);
+    useEffect(() => {
+        if (isFocused) {
+            setIsHighlighted(false);
         }
-    }, [isDraggingEarth, isDraggingScene, prevMousePos, size, camera]);
+    }, [isFocused]);
 
+
+    // Pointer event handlers
+    const handlePointerOver = useCallback((e) => {
+        e.stopPropagation();
+        if (!isFocused) setIsHighlighted(true);
+    }, [isFocused]);
+
+    const handlePointerOut = useCallback(() => {
+        setIsHighlighted(false);
+    }, []);
+
+    const handlePointerDown = useCallback((e) => {
+        e.stopPropagation();
+        hasDragged.current = false;
+        onDrag(true);
+    }, [onDrag]);
+
+    const handlePointerMove = useCallback((e) => {
+        if (e.buttons > 0) {
+            hasDragged.current = true;
+            onDrag(true);
+        }
+    }, [onDrag]);
+
+    const handlePointerUp = useCallback((e) => {
+        e.stopPropagation();
+        onDrag(false);
+    }, [onDrag]);
+
+    const handleClick = useCallback((e) => {
+        console.log("click");
+        e.stopPropagation();
+        e.nativeEvent.stopImmediatePropagation();
+        if (!hasDragged.current) {
+            onFocus(true);
+            setIsHighlighted(false);
+        }
+        hasDragged.current = false;
+    }, [onFocus]);
+
+    // Wheel handler
+    const handleWheel = useCallback((e) => {
+        e.stopPropagation();
+        if (isFocused && e.deltaY > 0) {
+            onFocus(false);
+        } else if (!isFocused && e.deltaY < 0) {
+            onFocus(true);
+        }
+    }, [isFocused, onFocus]);
+
+    // Animation frame loop
     useFrame((state, delta) => {
-        // Smooth camera zoom
-        const targetPosition = zoomed
-            ? new Vector3(0, 0, 10)
-            : originalCameraPosition.current;
-
-        camera.position.lerp(targetPosition, 0.1);
+        // Smooth camera transition
+        camera.position.lerp(targetCameraPosition.current, 0.1);
         camera.lookAt(0, 0, 0);
 
         // Moon orbit
         if (moonRef.current) {
-            setAngle(prev => prev + MOON_SPEED * delta * 60);
-            moonRef.current.position.x = Math.sin(angle) * MOON_DISTANCE;
-            moonRef.current.position.z = Math.cos(angle) * MOON_DISTANCE;
-            moonRef.current.rotation.y = angle;
+            setAngle(prev => prev + 0.001 * delta * 60);
+            moonRef.current.position.x = Math.sin(angle) * 10;
+            moonRef.current.position.z = Math.cos(angle) * 10;
+            moonRef.current.lookAt(0, 0, 0);
         }
 
-        // Apply momentum-based rotation
+        // Earth rotation momentum
         if (earthGroupRef.current) {
-            const momentumMagnitude = angularVelocity.current.length();
-
-            if (momentumMagnitude > 0.001) {
-                // Calculate rotation angle based on velocity magnitude
-                const rotationAngle = momentumMagnitude * delta * 15;
-                const axis = angularVelocity.current.clone().normalize();
-
-                // Apply rotation to the Earth group
+            const momentum = angularVelocity.current;
+            if (momentum.length() > 0.001) {
+                const rotationAngle = momentum.length() * delta * 15;
+                const axis = momentum.clone().normalize();
                 earthGroupRef.current.quaternion.multiply(
                     new Quaternion().setFromAxisAngle(axis, rotationAngle)
                 );
-
-                // Speed-dependent damping (faster spins last longer)
-                const damping = 0.90 - Math.min(momentumMagnitude * 0.015, 0.05);
-                angularVelocity.current.multiplyScalar(damping);
-            }
-
-            // Gentle base rotation when not zoomed
-            if (!zoomed && angularVelocity.current.length() < 0.01) {
-                const baseRotation = new Quaternion()
-                    .setFromAxisAngle(new Vector3(0, 1, 0), 0.0001 * delta * 60);
-
-                // Apply base rotation to the Earth group
-                earthGroupRef.current.quaternion.multiply(baseRotation);
+                angularVelocity.current.multiplyScalar(0.90);
             }
         }
     });
 
     return (
         <group>
-            {/* Earth Group with hover and click handlers */}
             <group
                 ref={earthGroupRef}
-                onPointerOver={handleMouseOver}
-                onPointerLeave={handleMouseLeave}
-                onPointerDown={handleMouseDown}
-                onPointerUp={handleMouseUp}
-                onPointerMove={handleMouseMove}
+                onPointerOver={handlePointerOver}
+                onPointerOut={handlePointerOut}
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerMove={handlePointerMove}
+                onClick={handleClick}
+                onWheel={handleWheel}
             >
                 {/* Earth Sphere */}
                 <mesh>
@@ -157,8 +142,8 @@ const Earth = ({ isDraggingScene }) => {
                         map={earthMap}
                         metalness={0.2}
                         roughness={0.5}
-                        emissive="#222233"
-                        emissiveIntensity={0.3}
+                        emissive={isHighlighted ? '#5e5e5e' : '#222233'}
+                        emissiveIntensity={isHighlighted ? 0.6 : 0.3}
                     />
                 </mesh>
 
@@ -179,7 +164,7 @@ const Earth = ({ isDraggingScene }) => {
             </group>
 
             {/* Moon */}
-            <mesh ref={moonRef} position={[MOON_DISTANCE, 0, 0]}>
+            <mesh ref={moonRef} position={[10, 0, 0]}>
                 <sphereGeometry args={[0.5, 32, 32]} />
                 <meshStandardMaterial
                     map={moonMap}

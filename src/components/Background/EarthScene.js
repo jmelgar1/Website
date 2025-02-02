@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, {useRef, useState, useEffect, useCallback} from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import Earth from './Earth';
@@ -6,11 +6,17 @@ import Stars from './Stars';
 import * as THREE from 'three';
 
 const EarthScene = () => {
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const sceneRef = useRef();
     const [isDraggingScene, setIsDraggingScene] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
-    const sceneRef = useRef();
+    const [focusedObject, setFocusedObject] = useState(null);
+    const [earthHasDragged, setEarthHasDragged] = useState(false);
 
+    const handleFocus = useCallback((shouldFocus) => {
+        setFocusedObject(shouldFocus ? 'earth' : null);
+    }, []);
+
+    // Handle scene dragging
     const handleMouseMove = (event) => {
         const currentMousePos = {
             x: (event.clientX / window.innerWidth) * 2 - 1,
@@ -20,13 +26,9 @@ const EarthScene = () => {
         if (isDraggingScene && sceneRef.current) {
             const deltaX = currentMousePos.x - prevMousePos.x;
             const deltaY = currentMousePos.y - prevMousePos.y;
-
-            // Rotate the entire scene
             sceneRef.current.rotation.y += deltaX * 2;
             sceneRef.current.rotation.x -= deltaY * 2;
         }
-
-        setMousePosition(currentMousePos);
         setPrevMousePos(currentMousePos);
     };
 
@@ -38,9 +40,25 @@ const EarthScene = () => {
         });
     };
 
-    const handleMouseUp = () => {
-        setIsDraggingScene(false);
-    };
+    // Global click handler for focusing
+    useEffect(() => {
+        const handleGlobalClick = () => {
+            if (focusedObject === 'earth' && !earthHasDragged) {
+                setFocusedObject(null);
+            }
+            setEarthHasDragged(false);
+        };
+
+        window.addEventListener('click', handleGlobalClick);
+        return () => window.removeEventListener('click', handleGlobalClick);
+    }, [focusedObject, earthHasDragged]);
+
+    // Scene dragging cleanup
+    useEffect(() => {
+        const handleMouseUp = () => setIsDraggingScene(false);
+        if (isDraggingScene) window.addEventListener('mouseup', handleMouseUp);
+        return () => window.removeEventListener('mouseup', handleMouseUp);
+    }, [isDraggingScene]);
 
     return (
         <div
@@ -52,10 +70,10 @@ const EarthScene = () => {
                 height: '100vh',
                 background: 'linear-gradient(to bottom, #000000, #1a1a4c)',
                 zIndex: -1,
+                cursor: isDraggingScene ? 'grabbing' : 'grab'
             }}
             onMouseMove={handleMouseMove}
             onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
         >
             <Canvas
                 camera={{
@@ -80,20 +98,15 @@ const EarthScene = () => {
                             args={[-10, 10, 10, -10, 0.5, 50]}
                         />
                     </directionalLight>
-                    <pointLight
-                        position={[-5, 3, 2]}
-                        intensity={0.8}
-                        color="#bde0ff"
-                        decay={2}
+                    <pointLight position={[-5, 3, 2]} intensity={0.8} color="#bde0ff" decay={2} />
+                    <pointLight position={[0, -5, -3]} intensity={0.5} color="#ffeedd" decay={2} />
+
+                    <Earth
+                        isFocused={focusedObject === 'earth'}
+                        onFocus={handleFocus}
+                        onDrag={setEarthHasDragged}
                     />
-                    <pointLight
-                        position={[0, -5, -3]}
-                        intensity={0.5}
-                        color="#ffeedd"
-                        decay={2}
-                    />
-                    {/* Pass isDraggingScene as a prop to Earth */}
-                    <Earth mousePosition={mousePosition} isDraggingScene={isDraggingScene} />
+
                     <Stars />
                 </group>
                 <OrbitControls
