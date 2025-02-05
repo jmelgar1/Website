@@ -4,6 +4,7 @@ import { TextureLoader } from 'three';
 import * as THREE from 'three';
 
 const Planet = ({
+                    position,
                     texture,
                     cloudTexture,
                     moonTexture,
@@ -118,7 +119,7 @@ const Planet = ({
     });
 
     return (
-        <group>
+        <group position={position}>
             <group
                 ref={planetGroupRef}
                 onPointerOver={handlePointerOver}
@@ -177,14 +178,3 @@ const Planet = ({
 };
 
 export default Planet;
-
-Planet.defaultProps = {
-    cloudSize: 1,
-    moonDistance: 0,
-    moonSize: 0,
-    moonOrbitSpeed: 0,
-    cloudTexture: null,
-    moonTexture: null,
-    hasClouds: false,
-    hasMoon: false
-};

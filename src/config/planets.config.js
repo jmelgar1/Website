@@ -3,13 +3,10 @@ import earthTexture from '../assets/textures/earth/earth_map.jpg';
 import earthClouds from '../assets/textures/earth/earth_clouds.png';
 import marsTexture from '../assets/textures/mars/mars_map.png'
 import moonTexture from '../assets/textures/moon_map.png';
-//import marsClouds from '../assets/textures/mars_dust.png';
-//import phobosTexture from '../assets/textures/phobos_map.jpg';
-
-console.log('Mars texture path:', marsTexture);
 
 export const PLANETS = {
     earth: {
+        position: [0, 0, 0],
         texture: earthTexture,
         cloudTexture: earthClouds,
         moonTexture: moonTexture,
@@ -27,6 +24,7 @@ export const PLANETS = {
         highlightEmissiveIntensity: 0.6
     },
     mars: {
+        position: [10, 0, 0],
         texture: marsTexture,
         cloudTexture: null,
         moonTexture: null,

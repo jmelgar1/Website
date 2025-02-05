@@ -7,7 +7,6 @@ import Stars from './Stars';
 import CameraController from './CameraController';
 import ClickHandler from './ClickHandler';
 import * as THREE from 'three';
-import DirectionalLightWithHelper from "./DirectionalLightWithHelper";
 
 const Scene = () => {
     const sceneRef = useRef();
@@ -102,7 +101,6 @@ const Scene = () => {
                 />
                 <group ref={sceneRef}>
                     <ambientLight intensity={0.5} color="#ffffff" />
-                    <DirectionalLightWithHelper />
                     <directionalLight
                         position={[0, 50, 0]}
                         intensity={1.5}
@@ -118,7 +116,6 @@ const Scene = () => {
                     <pointLight position={[0, -5, -3]} intensity={0.5} color="#ffeedd" decay={2} />
 
                     <Earth
-                        position={[10, 0, 0]}
                         name="planet-earth"
                         isFocused={focusedObject === 'earth'}
                         onFocus={(shouldFocus) => handleFocus('earth', shouldFocus)}
@@ -129,7 +126,6 @@ const Scene = () => {
                     />
 
                     <Mars
-                        position={[20, 0, 0]}
                         name="planet-mars"
                         isFocused={focusedObject === 'mars'}
                         onFocus={(shouldFocus) => handleFocus('mars', shouldFocus)}
