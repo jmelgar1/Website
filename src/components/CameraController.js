@@ -1,20 +1,36 @@
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import {PLANETS} from "../config/planets.config";
 
-const CameraController = ({ focusedObject }) => {
-    const DEFAULT_CAMERA_POSITION = new THREE.Vector3(0, 30, 30); // Higher vantage point
-    const ZOOMED_CAMERA_POSITION = new THREE.Vector3(0, 0, 10);
+const CameraController = ({ focusedObject, cameraTheta, cameraPhi }) => {
+    const DEFAULT_CAMERA_POSITION = new THREE.Vector3(0, 30, 30);
+    const ORBIT_RADIUS = 10;
 
     useFrame((state) => {
-        const targetPosition = focusedObject
-            ? ZOOMED_CAMERA_POSITION
-            : DEFAULT_CAMERA_POSITION;
+        if (focusedObject) {
+            // Orbit around focused planet
+            const planet = PLANETS[focusedObject];
+            const planetPosition = new THREE.Vector3(...planet.position);
 
-        state.camera.position.lerp(targetPosition, 0.1);
-        state.camera.lookAt(focusedObject === 'mars' ? -10 : 0, 0, 0); // Look at Mars when focused
+            const spherical = new THREE.Spherical(
+                ORBIT_RADIUS,
+                cameraPhi,
+                cameraTheta
+            );
+            const cameraPosition = new THREE.Vector3()
+                .setFromSpherical(spherical)
+                .add(planetPosition);
+
+            state.camera.position.lerp(cameraPosition, 0.1);
+            state.camera.lookAt(planetPosition);
+        } else {
+            // Default view: camera stays fixed, scene rotates
+            state.camera.position.lerp(DEFAULT_CAMERA_POSITION, 0.1);
+            state.camera.lookAt(0, 0, 0);
+        }
     });
 
     return null;
 };
 
-export default CameraController
+export default CameraController;

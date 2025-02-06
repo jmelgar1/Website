@@ -10,6 +10,8 @@ import * as THREE from 'three';
 
 const Scene = () => {
     const sceneRef = useRef();
+    const [cameraTheta, setCameraTheta] = useState(0); // Horizontal angle
+    const [cameraPhi, setCameraPhi] = useState(Math.PI / 4);
     const [isDraggingScene, setIsDraggingScene] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
     const [focusedObject, setFocusedObject] = useState(null);
@@ -19,29 +21,50 @@ const Scene = () => {
     });
     const [hasSceneDragged, setHasSceneDragged] = useState(false);
 
-    // Handle focus changes
     const handleFocus = useCallback((planetName, shouldFocus) => {
-        setFocusedObject(shouldFocus ? planetName : null);
+        if (shouldFocus) {
+            // Reset scene rotation/position to default
+            sceneRef.current.rotation.set(0, 0, 0);
+            sceneRef.current.position.set(0, 0, 0);
+            // Reset camera angles for clean orbit start
+            setCameraTheta(0);
+            setCameraPhi(Math.PI / 4);
+            setFocusedObject(planetName);
+        } else {
+            setFocusedObject(null);
+        }
     }, []);
 
     // Handle scene dragging
     const handleMouseMove = (event) => {
         const currentMousePos = {
-            x: (event.clientX / window.innerWidth) * 2 - 1,
-            y: -(event.clientY / window.innerHeight) * 2 + 1,
+            x: event.clientX,
+            y: event.clientY,
         };
 
         if (isDraggingScene && sceneRef.current) {
             const deltaX = currentMousePos.x - prevMousePos.x;
             const deltaY = currentMousePos.y - prevMousePos.y;
 
+            if (focusedObject) {
+                // CASE 1: Rotate CAMERA around focused planet
+                setCameraTheta(prev => prev - deltaX * 0.005);
+                setCameraPhi(prev => THREE.MathUtils.clamp(
+                    prev - deltaY * 0.005,
+                    0.1,
+                    Math.PI - 0.1
+                ));
+            } else {
+                // CASE 2: Rotate SCENE GROUP (entire scene)
+                sceneRef.current.rotation.y += deltaX * 0.01; // Horizontal
+                sceneRef.current.rotation.x -= deltaY * 0.01; // Vertical
+            }
+
             if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
                 setHasSceneDragged(true);
             }
-
-            sceneRef.current.rotation.y += deltaX * 2;
-            sceneRef.current.rotation.x -= deltaY * 2;
         }
+
         setPrevMousePos(currentMousePos);
     };
 
@@ -89,7 +112,11 @@ const Scene = () => {
                 shadows
                 gl={{ physicallyCorrectLights: true, toneMapping: THREE.ACESFilmicToneMapping }}
             >
-                <CameraController focusedObject={focusedObject} />
+                <CameraController
+                    focusedObject={focusedObject}
+                    cameraTheta={cameraTheta}
+                    cameraPhi={cameraPhi}
+                />
                 <ClickHandler
                     sceneRef={sceneRef}
                     focusedObject={focusedObject}
