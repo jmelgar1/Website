@@ -46,22 +46,19 @@ const Scene = () => {
             const deltaY = currentMousePos.y - prevMousePos.y;
 
             if (focusedObject) {
-                // Rotate CAMERA around focused planet
-                setCameraTheta(prev => prev - deltaX * 0.005);
+                // REVERSED CAMERA ORBIT
+                setCameraTheta(prev => prev + deltaX * 0.005);
                 setCameraPhi(prev => THREE.MathUtils.clamp(
-                    prev - deltaY * 0.005,
+                    prev + deltaY * 0.005,
                     0.1,
                     Math.PI - 0.1
                 ));
             } else {
-                // Rotate SCENE GROUP (entire scene)
-                // Normalize deltas by window size to ensure consistent speed
+                // REVERSED SCENE ROTATION
                 const normalizedDeltaX = deltaX / window.innerWidth;
                 const normalizedDeltaY = deltaY / window.innerHeight;
-
-                // Adjust rotation direction to feel natural
-                sceneRef.current.rotation.y -= normalizedDeltaX * Math.PI * 2; // Right drag = rotate right
-                sceneRef.current.rotation.x -= normalizedDeltaY * Math.PI * 2; // Down drag = tilt down
+                sceneRef.current.rotation.y += normalizedDeltaX * Math.PI * 2;
+                sceneRef.current.rotation.x += normalizedDeltaY * Math.PI * 2;
             }
 
             if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
