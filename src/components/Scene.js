@@ -10,7 +10,7 @@ import * as THREE from 'three';
 
 const Scene = () => {
     const sceneRef = useRef();
-    const [cameraTheta, setCameraTheta] = useState(0); // Horizontal angle
+    const [cameraTheta, setCameraTheta] = useState(0);
     const [cameraPhi, setCameraPhi] = useState(Math.PI / 4);
     const [isDraggingScene, setIsDraggingScene] = useState(false);
     const [prevMousePos, setPrevMousePos] = useState({ x: 0, y: 0 });
@@ -35,7 +35,6 @@ const Scene = () => {
         }
     }, []);
 
-    // Handle scene dragging
     const handleMouseMove = (event) => {
         const currentMousePos = {
             x: event.clientX,
@@ -47,7 +46,7 @@ const Scene = () => {
             const deltaY = currentMousePos.y - prevMousePos.y;
 
             if (focusedObject) {
-                // CASE 1: Rotate CAMERA around focused planet
+                // Rotate CAMERA around focused planet
                 setCameraTheta(prev => prev - deltaX * 0.005);
                 setCameraPhi(prev => THREE.MathUtils.clamp(
                     prev - deltaY * 0.005,
@@ -55,9 +54,14 @@ const Scene = () => {
                     Math.PI - 0.1
                 ));
             } else {
-                // CASE 2: Rotate SCENE GROUP (entire scene)
-                sceneRef.current.rotation.y += deltaX * 0.01; // Horizontal
-                sceneRef.current.rotation.x -= deltaY * 0.01; // Vertical
+                // Rotate SCENE GROUP (entire scene)
+                // Normalize deltas by window size to ensure consistent speed
+                const normalizedDeltaX = deltaX / window.innerWidth;
+                const normalizedDeltaY = deltaY / window.innerHeight;
+
+                // Adjust rotation direction to feel natural
+                sceneRef.current.rotation.y -= normalizedDeltaX * Math.PI * 2; // Right drag = rotate right
+                sceneRef.current.rotation.x -= normalizedDeltaY * Math.PI * 2; // Down drag = tilt down
             }
 
             if (Math.abs(deltaX) > 0 || Math.abs(deltaY) > 0) {
@@ -71,9 +75,10 @@ const Scene = () => {
     const handleMouseDown = (event) => {
         setIsDraggingScene(true);
         setHasSceneDragged(false);
+        // Store pixel coordinates (not normalized)
         setPrevMousePos({
-            x: (event.clientX / window.innerWidth) * 2 - 1,
-            y: -(event.clientY / window.innerHeight) * 2 + 1,
+            x: event.clientX,
+            y: event.clientY,
         });
     };
 
