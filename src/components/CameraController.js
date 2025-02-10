@@ -1,34 +1,38 @@
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import {PLANETS} from "../config/planets.config";
+import { PLANETS } from "../config/planets.config";
 
 const CameraController = ({ focusedObject, cameraTheta, cameraPhi }) => {
-    const DEFAULT_CAMERA_POSITION = new THREE.Vector3(0, 30, 30);
+    const DEFAULT_ORBIT_RADIUS = 30 * Math.sqrt(2);
     const ORBIT_RADIUS = 10;
+
+    const getCameraPosition = (orbitRadius, targetPosition = new THREE.Vector3()) => {
+        const adjustedTheta = -cameraTheta;
+        const adjustedPhi = Math.PI - cameraPhi;
+
+        const spherical = new THREE.Spherical(
+            orbitRadius,
+            adjustedPhi,
+            adjustedTheta
+        );
+
+        return new THREE.Vector3()
+            .setFromSpherical(spherical)
+            .add(targetPosition);
+    };
 
     useFrame((state) => {
         if (focusedObject) {
             const planet = PLANETS[focusedObject];
             const planetPosition = new THREE.Vector3(...planet.position);
-
-            const adjustedTheta = -cameraTheta;
-            const adjustedPhi = Math.PI - cameraPhi;
-
-            const spherical = new THREE.Spherical(
-                ORBIT_RADIUS,
-                adjustedPhi,
-                adjustedTheta
-            );
-
-            const cameraPosition = new THREE.Vector3()
-                .setFromSpherical(spherical)
-                .add(planetPosition);
+            const cameraPosition = getCameraPosition(ORBIT_RADIUS, planetPosition);
 
             state.camera.position.lerp(cameraPosition, 0.1);
             state.camera.lookAt(planetPosition);
         } else {
-            // Default view: camera stays fixed, scene rotates
-            state.camera.position.lerp(DEFAULT_CAMERA_POSITION, 0.1);
+            const cameraPosition = getCameraPosition(DEFAULT_ORBIT_RADIUS);
+
+            state.camera.position.lerp(cameraPosition, 0.1);
             state.camera.lookAt(0, 0, 0);
         }
     });
