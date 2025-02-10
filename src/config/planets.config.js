@@ -15,7 +15,7 @@ export const PLANETS = {
         rotationSpeed: 15,
         hasClouds: true,
         hasMoon: true,
-        moonDistance: 10,
+        moonDistance: 7,
         moonSize: 0.5,
         moonOrbitSpeed: 0.001,
         emissive: "#222233",
@@ -24,7 +24,7 @@ export const PLANETS = {
         highlightEmissiveIntensity: 0.6
     },
     mars: {
-        position: [10, 0, 0],
+        position: [20, 0, 0],
         texture: marsTexture,
         cloudTexture: null,
         moonTexture: null,
