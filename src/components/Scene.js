@@ -141,8 +141,8 @@ const Scene = () => {
 
                     {['earth', 'mars'].map(renderPlanet)}
 
-                    <axesHelper args={[20]} />
-                    <gridHelper args={[100, 100]} />
+                    {/*<axesHelper args={[20]} />*/}
+                    {/*<gridHelper args={[100, 100]} />*/}
                     <Stars />
                 </group>
 
