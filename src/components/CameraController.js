@@ -8,15 +8,18 @@ const CameraController = ({ focusedObject, cameraTheta, cameraPhi }) => {
 
     useFrame((state) => {
         if (focusedObject) {
-            // Orbit around focused planet
             const planet = PLANETS[focusedObject];
             const planetPosition = new THREE.Vector3(...planet.position);
 
+            const adjustedTheta = -cameraTheta;
+            const adjustedPhi = Math.PI - cameraPhi;
+
             const spherical = new THREE.Spherical(
                 ORBIT_RADIUS,
-                cameraPhi,
-                cameraTheta
+                adjustedPhi,
+                adjustedTheta
             );
+
             const cameraPosition = new THREE.Vector3()
                 .setFromSpherical(spherical)
                 .add(planetPosition);

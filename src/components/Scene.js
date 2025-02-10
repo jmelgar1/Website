@@ -46,7 +46,6 @@ const Scene = () => {
             const deltaY = currentMousePos.y - prevMousePos.y;
 
             if (focusedObject) {
-                // REVERSED CAMERA ORBIT
                 setCameraTheta(prev => prev + deltaX * 0.005);
                 setCameraPhi(prev => THREE.MathUtils.clamp(
                     prev + deltaY * 0.005,
@@ -54,7 +53,6 @@ const Scene = () => {
                     Math.PI - 0.1
                 ));
             } else {
-                // REVERSED SCENE ROTATION
                 const normalizedDeltaX = deltaX / window.innerWidth;
                 const normalizedDeltaY = deltaY / window.innerHeight;
                 sceneRef.current.rotation.y += normalizedDeltaX * Math.PI * 2;
