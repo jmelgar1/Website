@@ -1,14 +1,15 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import Earth from './Earth';
-import Mars from "./Mars";
+import Earth from './planets/Earth';
+import Mars from "./planets/Mars";
 import Stars from './Stars';
 import CameraController from './CameraController';
 import ClickHandler from './ClickHandler';
 import * as THREE from 'three';
 import { PLANETS } from "../config/planets.config";
 import CameraSetter from "./CameraSetter";
+import Sun from "./planets/Sun";
 
 const Scene = () => {
     const sceneRef = useRef();
@@ -78,7 +79,13 @@ const Scene = () => {
     }, [isDraggingScene]);
 
     const renderPlanet = (planetName) => {
-        const PlanetComponent = planetName === 'earth' ? Earth : Mars;
+        const componentMap = {
+            sun: Sun,
+            earth: Earth,
+            mars: Mars
+        };
+
+        const PlanetComponent = componentMap[planetName];
 
         return (
             <PlanetComponent
@@ -139,7 +146,7 @@ const Scene = () => {
                     <pointLight position={[-5, 3, 2]} intensity={0.8} color="#bde0ff" decay={2} />
                     <pointLight position={[0, -5, -3]} intensity={0.5} color="#ffeedd" decay={2} />
 
-                    {['earth', 'mars'].map(renderPlanet)}
+                    {['sun', 'earth', 'mars'].map(renderPlanet)}
 
                     {/*<axesHelper args={[20]} />*/}
                     {/*<gridHelper args={[100, 100]} />*/}

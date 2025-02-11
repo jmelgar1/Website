@@ -1,12 +1,34 @@
 // planets.config.js
+import sunTexture from '../assets/textures/sun/sun_map.jpg';
 import earthTexture from '../assets/textures/earth/earth_map.jpg';
 import earthClouds from '../assets/textures/earth/earth_clouds.png';
 import marsTexture from '../assets/textures/mars/mars_map.png'
 import moonTexture from '../assets/textures/moon_map.png';
 
 export const PLANETS = {
-    earth: {
+    sun: {
         position: [0, 0, 0],
+        texture: sunTexture,
+        cloudTexture: null,
+        moonTexture: null,
+        size: 2,
+        rotationSpeed: 15,
+        emissive: "#222233",
+        emissiveIntensity: 0.3,
+        highlightEmissive: "#5e5e5e",
+        highlightEmissiveIntensity: 0.6,
+        hasFlares: true,
+        flareSettings: {
+            count: 100,
+            scale: [8, 8, 8],
+            size: 6,
+            speed: 0.4,
+            color: "#ff8800",
+            opacity: 0.6
+        },
+    },
+    earth: {
+        position: [10, 0, 0],
         texture: earthTexture,
         cloudTexture: earthClouds,
         moonTexture: moonTexture,
@@ -24,7 +46,7 @@ export const PLANETS = {
         highlightEmissiveIntensity: 0.6
     },
     mars: {
-        position: [20, 0, 0],
+        position: [30, 0, 0],
         texture: marsTexture,
         cloudTexture: null,
         moonTexture: null,
