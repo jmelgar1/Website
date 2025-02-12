@@ -1,8 +1,8 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { TextureLoader } from 'three';
+import {AdditiveBlending, Color, ShaderMaterial, TextureLoader} from 'three';
 import * as THREE from 'three';
-import {Sparkles} from "@react-three/drei";
+import * as GlowShaderMaterial from "three/src/Three.TSL";
 
 const Planet = ({
                     position,
@@ -21,9 +21,7 @@ const Planet = ({
                     emissiveIntensity,
                     highlightEmissive,
                     highlightEmissiveIntensity,
-                    hasFlares,
-                    flareSettings = {},
-                    glowSettings = {},
+                    hasGlow,
                     isFocused,
                     onFocus,
                     onDrag
@@ -31,11 +29,40 @@ const Planet = ({
     const planetGroupRef = useRef();
     const moonRef = useRef();
     const cloudGroupRef = useRef();
-    const flareGroupRef = useRef();
-    const flareRotation = useRef(0);
+    const glowGroupRef = useRef();
+    const glowMaterialRef = useRef();
     const angle = useRef(0);
     const [isHighlighted, setIsHighlighted] = useState(false);
     const [hasDragged, setHasDragged] = useState(false);
+
+    const GlowShaderMaterial = new ShaderMaterial({
+        uniforms: {
+            time: { value: 0 },
+            color: { value: new Color("#ffdd55") },
+            opacity: { value: 0.4 }
+        },
+        vertexShader: `
+            uniform float time;
+            varying vec3 vNormal;
+            void main() {
+                vec3 transformed = position;
+                transformed += normal * sin(time + position.y * 3.0) * 0.1; // Wavy effect
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
+                vNormal = normal;
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 color;
+            uniform float opacity;
+            varying vec3 vNormal;
+            void main() {
+                float intensity = dot(normalize(vNormal), vec3(0.0, 0.0, 1.0));
+                gl_FragColor = vec4(color * intensity, opacity);
+            }
+        `,
+        transparent: true,
+        blending: AdditiveBlending
+    });
 
     const fallbackTexture = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
@@ -51,11 +78,6 @@ const Planet = ({
     const moonMap = useLoader(
         TextureLoader,
         hasMoon ? moonTexture || fallbackTexture : fallbackTexture
-    );
-
-    const flareMap = useLoader(
-        TextureLoader,
-        hasClouds ? cloudTexture || fallbackTexture : fallbackTexture
     );
 
     // Event handlers
@@ -128,16 +150,22 @@ const Planet = ({
             cloudGroupRef.current.rotation.y += delta * rotationSpeed * 0.003;
         }
 
-        //Flares
-        if (hasFlares && flareGroupRef.current) {
-            flareRotation.current += delta * flareSettings.speed;
-            flareGroupRef.current.rotation.y = flareRotation.current;
+        // //Flares
+        // if (hasFlares && flareGroupRef.current) {
+        //     flareRotation.current += delta * flareSettings.speed;
+        //     flareGroupRef.current.rotation.y = flareRotation.current;
+        //
+        //     // Pulsing opacity
+        //     const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.2 + 0.8;
+        //     flareGroupRef.current.children.forEach(flare => {
+        //         flare.material.opacity = flareSettings.opacity * pulse;
+        //     });
+        // }
+    });
 
-            // Pulsing opacity
-            const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.2 + 0.8;
-            flareGroupRef.current.children.forEach(flare => {
-                flare.material.opacity = flareSettings.opacity * pulse;
-            });
+    useFrame(({ clock }) => {
+        if (glowMaterialRef.current) {
+            glowMaterialRef.current.uniforms.time.value = clock.elapsedTime * 2;
         }
     });
 
@@ -165,44 +193,13 @@ const Planet = ({
                     />
                 </mesh>
 
-                {/* Dedicated Flare System */}
-                {hasFlares && (
-                    <group ref={flareGroupRef}>
-                        {/* Radial flares */}
-                        {Array.from({ length: flareSettings.count }).map((_, i) => {
-                            const angle = (Math.PI * 2 * i) / flareSettings.count;
-                            return (
-                                <mesh
-                                    key={i}
-                                    position={[
-                                        Math.cos(angle) * size * flareSettings.scale,
-                                        0,
-                                        Math.sin(angle) * size * flareSettings.scale
-                                    ]}
-                                    rotation={[0, -angle, 0]}
-                                >
-                                    <planeGeometry args={[size * 0.8, size * 0.8]} />
-                                    <meshStandardMaterial
-                                        map={flareMap}
-                                        transparent=""
-                                        blending={THREE.AdditiveBlending}
-                                        depthWrite={false}
-                                        opacity={flareSettings.opacity}
-                                        side={THREE.DoubleSide}
-                                    />
-                                </mesh>
-                            );
-                        })}
-
-                        {/* Particle corona */}
-                        <Sparkles
-                            count={100}
-                            size={6}
-                            speed={0.4}
-                            color="#ffaa00"
-                            scale={size * 2}
-                            opacity={0.6}
-                        />
+                {/* Dedicated Glow System */}
+                {hasGlow && (
+                    <group ref={glowGroupRef}>
+                        <mesh>
+                            <sphereGeometry args={[size * 1.3, 64, 64]} />
+                            <primitive attach="material" object={GlowShaderMaterial} ref={glowMaterialRef} />
+                        </mesh>
                     </group>
                 )}
 

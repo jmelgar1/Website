@@ -17,18 +17,18 @@ export const PLANETS = {
         emissiveIntensity: 0.3,
         highlightEmissive: "#5e5e5e",
         highlightEmissiveIntensity: 0.6,
-        hasFlares: true,
-        flareSettings: {
-            count: 100,
-            scale: [8, 8, 8],
-            size: 6,
-            speed: 0.4,
-            color: "#ff8800",
-            opacity: 0.6
-        },
+        hasGlow: true,
+        // flareSettings: {
+        //     count: 100,
+        //     scale: [8, 8, 8],
+        //     size: 50,
+        //     speed: 0.2,
+        //     color: "#ff8800",
+        //     opacity: 0.6
+        // },
     },
     earth: {
-        position: [10, 0, 0],
+        position: [30, 0, 0],
         texture: earthTexture,
         cloudTexture: earthClouds,
         moonTexture: moonTexture,
@@ -46,7 +46,7 @@ export const PLANETS = {
         highlightEmissiveIntensity: 0.6
     },
     mars: {
-        position: [30, 0, 0],
+        position: [60, 0, 0],
         texture: marsTexture,
         cloudTexture: null,
         moonTexture: null,
